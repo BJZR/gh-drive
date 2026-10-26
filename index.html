@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.github.com; img-src data: blob:; base-uri 'none'; form-action 'none'">
+    <meta name="referrer" content="no-referrer">
     <title>GitHub Drive - Cloud Disk Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -253,7 +255,7 @@
             </div>
             <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                 <button onclick="closeNewDiskModal()" class="px-4 py-2 border border-zinc-300 dark:border-zinc-700 font-mono text-xs">CANCEL</button>
-                <button onclick="addNewDisk()" class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-mono text-xs font-semibold">CREATE DISK</button>
+                <button id="newDiskSubmitBtn" onclick="addNewDisk()" class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-mono text-xs font-semibold">CREATE DISK</button>
             </div>
         </div>
     </div>
@@ -269,7 +271,7 @@
             <div class="space-y-4 font-mono text-xs">
                 <div>
                     <label class="block text-zinc-600 dark:text-zinc-400 mb-1">GitHub Personal Access Token (PAT)</label>
-                    <input type="password" id="inputToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
+                    <input type="password" id="inputToken" autocomplete="off" spellcheck="false" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -282,6 +284,15 @@
                         <input type="text" id="inputDisk" placeholder="e.g. disk-alpha" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
                     </div>
                 </div>
+            </div>
+
+            <div class="space-y-2 font-mono text-xs border-t border-zinc-200 dark:border-zinc-800 pt-4">
+                <div class="flex items-center space-x-2">
+                    <button type="button" id="rememberBtn" role="checkbox" onclick="toggleRemember()" aria-label="Remember token"></button>
+                    <span>Remember token on this device</span>
+                </div>
+                <p class="text-[11px] text-zinc-500">Off (recommended): the token is erased when you close the tab. On: it stays saved in this browser.</p>
+                <button type="button" onclick="forgetToken()" class="text-[11px] underline text-red-600 dark:text-red-400">Forget token now</button>
             </div>
 
             <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
@@ -301,6 +312,7 @@
             <div class="space-y-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
                 <p id="confirmMsg"></p>
                 <div id="confirmDetail" class="hidden p-3 border border-red-500/40 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 text-[11px]"></div>
+                <input type="text" id="confirmInput" autocomplete="off" spellcheck="false" class="hidden w-full bg-zinc-50 dark:bg-zinc-950 border border-red-500/60 p-2.5 focus:outline-none">
             </div>
             <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                 <button onclick="closeConfirm()" class="px-4 py-2 border border-zinc-300 dark:border-zinc-700 font-mono text-xs">CANCEL</button>
@@ -337,10 +349,11 @@
     <script>
         // State Management
         let appState = {
-            token: localStorage.getItem('gh_drive_token') || '',
+            token: sessionStorage.getItem('gh_drive_token') || localStorage.getItem('gh_drive_token') || '',
+            remember: !!localStorage.getItem('gh_drive_token'),
             owner: localStorage.getItem('gh_drive_owner') || '',
             activeDisk: localStorage.getItem('gh_drive_active_disk') || 'disk-alpha',
-            disks: JSON.parse(localStorage.getItem('gh_drive_disks') || '["disk-alpha"]'),
+            disks: loadDisks(),
             themeMode: localStorage.getItem('gh_drive_theme') || 'system', // 'light', 'dark', 'system'
             currentView: 'dashboard', // 'dashboard' or 'interior'
             currentPath: '',
@@ -355,6 +368,8 @@
             document.getElementById('inputToken').value = appState.token;
             document.getElementById('inputOwner').value = appState.owner;
             document.getElementById('inputDisk').value = appState.activeDisk;
+            updateRememberUI();
+            document.getElementById('fileTableBody').addEventListener('click', handleRowClick);
 
             renderDisksDashboard();
         };
@@ -544,16 +559,31 @@
 
         // --- Floating confirm modal ---
         let confirmCallback = null;
-        function openConfirm({ title, message, detail = '', confirmLabel = 'DELETE', onConfirm }) {
+        function openConfirm({ title, message, detail = '', confirmLabel = 'DELETE', requireText = '', onConfirm }) {
             document.getElementById('confirmTitle').textContent = title;
             document.getElementById('confirmMsg').textContent = message;
             const d = document.getElementById('confirmDetail');
             d.textContent = detail;
             d.classList.toggle('hidden', !detail);
             const ok = document.getElementById('confirmOkBtn');
+            const input = document.getElementById('confirmInput');
             ok.textContent = confirmLabel;
             confirmCallback = onConfirm;
-            ok.onclick = () => { const cb = confirmCallback; closeConfirm(); if (cb) cb(); };
+
+            const lock = (locked) => { ok.disabled = locked; ok.classList.toggle('opacity-40', locked); ok.classList.toggle('cursor-not-allowed', locked); };
+            if (requireText) {
+                input.value = '';
+                input.placeholder = `Type ${requireText} to confirm`;
+                input.classList.remove('hidden');
+                input.oninput = () => lock(input.value.trim() !== requireText);
+                lock(true);
+                setTimeout(() => input.focus(), 50);
+            } else {
+                input.classList.add('hidden');
+                input.oninput = null;
+                lock(false);
+            }
+            ok.onclick = () => { if (ok.disabled) return; const cb = confirmCallback; closeConfirm(); if (cb) cb(); };
             document.getElementById('confirmModal').classList.remove('hidden');
         }
         function closeConfirm() {
@@ -566,7 +596,8 @@
                 closeConfirm(); closeFolderModal(); closeNewDiskModal(); closeSafetyModal(); toggleSettingsModal(false);
             }
             if (e.key === 'Enter') {
-                if (!document.getElementById('folderModal').classList.contains('hidden')) submitNewFolder();
+                if (!document.getElementById('confirmModal').classList.contains('hidden')) { const ok = document.getElementById('confirmOkBtn'); if (!ok.disabled) ok.click(); }
+                else if (!document.getElementById('folderModal').classList.contains('hidden')) submitNewFolder();
                 else if (!document.getElementById('newDiskModal').classList.contains('hidden')) addNewDisk();
             }
         });
@@ -588,11 +619,18 @@
                     ? `⚠ Connected mode: the GitHub repositories (${names.join(', ')}) will be PERMANENTLY deleted with all their files. Your token needs the "delete_repo" scope.`
                     : 'Simulation mode: only local data will be removed.',
                 confirmLabel: 'YES, DELETE DISK(S)',
+                requireText: isLive() ? 'DELETE' : '',
                 onConfirm: confirmDeleteDisks
             });
         }
 
         async function confirmDeleteDisks() {
+            if (isBusy) return;
+            isBusy = true;
+            try { await doDeleteDisks(); } finally { isBusy = false; }
+        }
+
+        async function doDeleteDisks() {
             const names = [...appState.selectedDisks];
             for (const disk of names) {
                 if (isLive()) {
@@ -628,37 +666,57 @@
             document.getElementById('newDiskModal').classList.add('hidden');
         }
 
+        function setCreateBtn(loading) {
+            const b = document.getElementById('newDiskSubmitBtn');
+            b.disabled = loading;
+            b.textContent = loading ? 'CREATING...' : 'CREATE DISK';
+            b.classList.toggle('opacity-40', loading);
+            b.classList.toggle('cursor-not-allowed', loading);
+        }
+
         async function addNewDisk() {
-            const name = document.getElementById('newDiskNameInput').value.trim().toLowerCase().replace(/[\s\/\\]/g, '-');
-            if (!name) return;
-            if (!appState.disks.includes(name)) {
+            if (isBusy) return;
+            const name = sanitizeRepoName(document.getElementById('newDiskNameInput').value);
+            if (!name) {
+                showToast('Invalid name. Use letters, numbers, "-", "_" or ".".', true);
+                return;
+            }
+            if (appState.disks.includes(name)) {
+                showToast(`Disk "${name}" already exists.`, true);
+                return;
+            }
+            isBusy = true;
+            setCreateBtn(true);
+            try {
                 if (isLive()) {
-                    try {
-                        const me = await (await fetch(`${GH}/user`, { headers: ghHeaders() })).json();
-                        const endpoint = (me.login || '').toLowerCase() === appState.owner.toLowerCase()
-                            ? `${GH}/user/repos` : `${GH}/orgs/${appState.owner}/repos`;
-                        const res = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: ghHeaders(true),
-                            body: JSON.stringify({ name, private: true, auto_init: true, description: 'GH Drive storage disk' })
-                        });
-                        if (!res.ok) {
-                            const e = await res.json();
-                            const exists = (e.errors || []).some(x => /already exists/i.test(x.message || ''));
-                            if (!exists) throw new Error(e.message || 'Create failed');
-                        }
-                    } catch (err) {
-                        showToast(`Could not create repository: ${err.message}`, true);
-                        return;
+                    const me = await (await fetch(`${GH}/user`, { headers: ghHeaders() })).json();
+                    const endpoint = (me.login || '').toLowerCase() === appState.owner.toLowerCase()
+                        ? `${GH}/user/repos` : `${GH}/orgs/${appState.owner}/repos`;
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: ghHeaders(true),
+                        body: JSON.stringify({ name, private: true, auto_init: true, description: 'GH Drive storage disk' })
+                    });
+                    if (!res.ok) {
+                        const e = await res.json();
+                        const exists = (e.errors || []).some(x => /already exists/i.test(x.message || ''));
+                        if (!exists) throw new Error(e.message || 'Create failed');
                     }
                 }
-                appState.disks.push(name);
-                localStorage.setItem('gh_drive_disks', JSON.stringify(appState.disks));
+                if (!appState.disks.includes(name)) {
+                    appState.disks.push(name);
+                    localStorage.setItem('gh_drive_disks', JSON.stringify(appState.disks));
+                }
+                document.getElementById('newDiskNameInput').value = '';
+                closeNewDiskModal();
+                showToast(`Disk repository ${name} created successfully.`);
+                renderDisksDashboard();
+            } catch (err) {
+                showToast(`Could not create repository: ${err.message}`, true);
+            } finally {
+                isBusy = false;
+                setCreateBtn(false);
             }
-            document.getElementById('newDiskNameInput').value = '';
-            closeNewDiskModal();
-            showToast(`Disk repository ${name} created successfully.`);
-            renderDisksDashboard();
         }
 
         // --- View Controller: Disk Interior (File Explorer) ---
@@ -705,17 +763,18 @@
             const container = document.getElementById('breadcrumbContainer');
             container.innerHTML = '';
 
-            let crumbHtml = `<button onclick="navigateTo('')" class="hover:underline text-zinc-900 dark:text-zinc-100 font-bold">~/${appState.activeDisk}</button>`;
+            let crumbHtml = `<button data-path="" class="hover:underline text-zinc-900 dark:text-zinc-100 font-bold">~/${esc(appState.activeDisk)}</button>`;
             
             if (appState.currentPath) {
                 const parts = appState.currentPath.split('/');
                 let builtPath = '';
                 parts.forEach((part, idx) => {
                     builtPath += (idx === 0 ? part : '/' + part);
-                    crumbHtml += `<span class="text-zinc-400 mx-1">/</span><button onclick="navigateTo('${builtPath}')" class="hover:underline text-zinc-900 dark:text-zinc-100">${part}</button>`;
+                    crumbHtml += `<span class="text-zinc-400 mx-1">/</span><button data-path="${esc(builtPath)}" class="hover:underline text-zinc-900 dark:text-zinc-100">${esc(part)}</button>`;
                 });
             }
             container.innerHTML = crumbHtml;
+            container.onclick = e => { const b = e.target.closest('[data-path]'); if (b) navigateTo(b.dataset.path); };
         }
 
         // --- Load Disk Contents ---
@@ -792,7 +851,8 @@
                 return a.type === 'dir' ? -1 : 1;
             });
 
-            files.forEach(file => {
+            renderedFiles = files;
+            files.forEach((file, i) => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors border-b border-zinc-200 dark:border-zinc-800/60';
                 
@@ -806,15 +866,15 @@
                 tr.innerHTML = `
                     <td class="p-3 flex items-center space-x-2">
                         ${iconSvg}
-                        <a href="#" onclick="${isDir ? `navigateTo('${file.path}')` : `downloadFile('${file.download_url || '#'}', '${file.name}')`}" class="hover:underline font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-xs sm:max-w-md">
-                            ${file.name}
+                        <a href="#" data-act="open" data-i="${i}" class="hover:underline font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-xs sm:max-w-md">
+                            ${esc(file.name)}
                         </a>
                     </td>
                     <td class="p-3 text-zinc-500">${formattedSize}</td>
-                    <td class="p-3 text-zinc-500 uppercase text-[10px]">${file.type}</td>
+                    <td class="p-3 text-zinc-500 uppercase text-[10px]">${esc(file.type)}</td>
                     <td class="p-3 text-right space-x-2">
-                        ${!isDir ? `<button onclick="copyFileLink('${file.download_url || '#'}')" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 text-[11px] underline">Link</button>` : ''}
-                        <button onclick="deleteItem('${file.name}', '${file.path}', '${file.type}')" class="text-zinc-400 hover:text-red-500 text-[11px]">Delete</button>
+                        ${!isDir ? `<button data-act="link" data-i="${i}" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 text-[11px] underline">Link</button>` : ''}
+                        <button data-act="delete" data-i="${i}" class="text-zinc-400 hover:text-red-500 text-[11px]">Delete</button>
                     </td>
                 `;
                 tableBody.appendChild(tr);
@@ -976,6 +1036,12 @@
         }
 
         async function performDelete(name, path, isDir) {
+            if (isBusy) return;
+            isBusy = true;
+            try { await doPerformDelete(name, path, isDir); } finally { isBusy = false; }
+        }
+
+        async function doPerformDelete(name, path, isDir) {
             if (isLive()) {
                 try {
                     await ghDeletePath(path);
@@ -1002,6 +1068,7 @@
         }
 
         function downloadFile(url, filename) {
+            if (url && url !== '#' && !/^(https:\/\/|data:)/i.test(url)) { showToast('Blocked unsafe link.', true); return; }
             if (url === '#' || !url) {
                 showToast('Download link not active in simulation mode for this item.', true);
                 return;
@@ -1067,30 +1134,105 @@
         }
 
         function saveSettings() {
-            appState.token = document.getElementById('inputToken').value.trim();
-            appState.owner = document.getElementById('inputOwner').value.trim();
-            const newDisk = document.getElementById('inputDisk').value.trim();
+            const token = document.getElementById('inputToken').value.trim();
+            const owner = document.getElementById('inputOwner').value.trim();
+            const rawDisk = document.getElementById('inputDisk').value.trim();
+            const newDisk = rawDisk ? sanitizeRepoName(rawDisk) : '';
 
-            if (newDisk && !appState.disks.includes(newDisk)) {
-                appState.disks.push(newDisk);
+            if (owner && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(owner)) {
+                showToast('Invalid GitHub username / org.', true);
+                return;
             }
-            if (newDisk) {
-                appState.activeDisk = newDisk;
+            if (rawDisk && !newDisk) {
+                showToast('Invalid disk name.', true);
+                return;
             }
 
-            localStorage.setItem('gh_drive_token', appState.token);
+            appState.token = token;
+            appState.owner = owner;
+            if (newDisk && !appState.disks.includes(newDisk)) appState.disks.push(newDisk);
+            if (newDisk) appState.activeDisk = newDisk;
+
+            // Token: session only by default, persistent only if the user opts in
+            localStorage.removeItem('gh_drive_token');
+            sessionStorage.removeItem('gh_drive_token');
+            if (token) (appState.remember ? localStorage : sessionStorage).setItem('gh_drive_token', token);
+
             localStorage.setItem('gh_drive_owner', appState.owner);
             localStorage.setItem('gh_drive_active_disk', appState.activeDisk);
             localStorage.setItem('gh_drive_disks', JSON.stringify(appState.disks));
 
             toggleSettingsModal(false);
             showToast('Settings saved successfully.');
-            if (appState.currentView === 'dashboard') {
-                renderDisksDashboard();
-            } else {
-                loadDiskContents();
+            if (appState.currentView === 'dashboard') renderDisksDashboard();
+            else loadDiskContents();
+        }
+
+        function updateRememberUI() {
+            const b = document.getElementById('rememberBtn');
+            const on = appState.remember;
+            b.setAttribute('aria-checked', on);
+            b.className = 'w-5 h-5 border flex items-center justify-center transition-colors ' + (on
+                ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900'
+                : 'border-zinc-400 dark:border-zinc-600 hover:border-zinc-900 dark:hover:border-zinc-100 text-transparent');
+            b.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
+        }
+
+        function toggleRemember() {
+            appState.remember = !appState.remember;
+            updateRememberUI();
+        }
+
+        function forgetToken() {
+            appState.token = '';
+            document.getElementById('inputToken').value = '';
+            localStorage.removeItem('gh_drive_token');
+            sessionStorage.removeItem('gh_drive_token');
+            showToast('Token removed from this browser.');
+            if (appState.currentView === 'dashboard') renderDisksDashboard();
+            else loadDiskContents();
+        }
+
+        // --- Security helpers ---
+        let isBusy = false;
+        let renderedFiles = [];
+
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function sanitizeRepoName(n) {
+            const name = String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9._-]/g, '').slice(0, 100);
+            return (name === '.' || name === '..') ? '' : name;
+        }
+
+        function loadDisks() {
+            let d;
+            try { d = JSON.parse(localStorage.getItem('gh_drive_disks') || 'null'); } catch (e) { d = null; }
+            if (!Array.isArray(d)) d = ['disk-alpha'];
+            d = [...new Set(d.map(sanitizeRepoName).filter(Boolean))];
+            if (!d.length) d = ['disk-alpha'];
+            localStorage.setItem('gh_drive_disks', JSON.stringify(d));
+            return d;
+        }
+
+        function handleRowClick(e) {
+            const el = e.target.closest('[data-act]');
+            if (!el) return;
+            e.preventDefault();
+            const file = renderedFiles[Number(el.dataset.i)];
+            if (!file) return;
+            if (el.dataset.act === 'open') {
+                if (file.type === 'dir') navigateTo(file.path);
+                else downloadFile(file.download_url || '#', file.name);
+            } else if (el.dataset.act === 'link') {
+                copyFileLink(file.download_url || '#');
+            } else if (el.dataset.act === 'delete') {
+                deleteItem(file.name, file.path, file.type);
             }
         }
+
     </script>
 </body>
 </html>

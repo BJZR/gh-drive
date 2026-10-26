@@ -57,7 +57,17 @@ Notas:
 Subir `index.html` a un repo → **Settings → Pages** → rama `main`, carpeta `/root`. Quedará en `https://<usuario>.github.io/<repo>/`.
 Usa un repo aparte de tus discos y no guardes el token en el código: se escribe en el engranaje y vive solo en tu navegador.
 
-## 6. Problemas comunes
+## 6. Seguridad
+
+- **Token solo en sesión (por defecto):** se borra al cerrar la pestaña. Solo se guarda en el navegador si activas *Remember token*. El botón *Forget token now* lo borra de inmediato.
+- **Borrar discos en modo conectado:** exige escribir `DELETE` para confirmar.
+- **Anti doble clic:** los botones se bloquean mientras una operación está en curso (ya no se duplican discos).
+- **Nombres validados:** discos solo `a-z 0-9 . _ -`; usuario validado; discos duplicados se limpian al cargar.
+- **Anti-XSS:** nombres de archivos/carpetas se escapan antes de mostrarse; enlaces solo `https://` o `data:`.
+- **CSP:** la página solo puede conectarse a `api.github.com`. Si algún día se ve sin estilos, revisa la etiqueta `<meta http-equiv="Content-Security-Policy">`.
+- Usa un token con expiración corta y revócalo en GitHub si sospechas que se filtró.
+
+## 7. Problemas comunes
 
 | Error | Causa |
 |---|---|
