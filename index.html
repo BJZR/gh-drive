@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Drive - Cloud Disk Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+                    },
+                    borderRadius: {
+                        none: '0px',
+                        DEFAULT: '0px',
+                        sm: '0px',
+                        md: '0px',
+                        lg: '0px',
+                        xl: '0px',
+                        '2xl': '0px',
+                        '3xl': '0px',
+                        full: '0px',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Force zero border radius globally for brutalist squared technical aesthetic */
+        *, ::before, ::after {
+            border-radius: 0 !important;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        code, pre, .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #71717a;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-screen flex flex-col transition-colors duration-150">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <!-- GitHub SVG Icon -->
+            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span class="font-bold tracking-tight text-lg">GH_DRIVE</span>
+            <span class="text-xs px-2 py-0.5 border border-zinc-400 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono">DISC_OS</span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <!-- Breadcrumb / View Switcher Header Title -->
+            <div id="topNavBarTitle" class="hidden sm:flex items-center space-x-2 font-mono text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-1">
+                <span class="text-zinc-500">VIEW:</span>
+                <span id="headerCurrentViewText" class="font-bold">DISKS DASHBOARD</span>
+            </div>
+
+            <!-- Settings Button -->
+            <button onclick="toggleSettingsModal(true)" class="p-2 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="GitHub PAT Settings">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+
+            <!-- Three-State Theme Toggle (Light / Dark / System) -->
+            <button onclick="cycleTheme()" id="themeToggleButton" class="p-2 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center space-x-1" title="Theme Mode">
+                <!-- Monitor Icon (System) -->
+                <svg id="themeIconSystem" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                <!-- Sun Icon (Light) -->
+                <svg id="themeIconSun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <!-- Moon Icon (Dark) -->
+                <svg id="themeIconMoon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 flex flex-col bg-white dark:bg-zinc-950">
+        
+        <!-- VIEW 1: DISKS DASHBOARD (Home) -->
+        <div id="disksDashboardView" class="flex-1 flex flex-col p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6">
+            
+            <!-- Header & Search Toolbar for Disks -->
+            <div class="flex flex-col gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-6">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight font-mono">STORAGE DISKS</h1>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400 font-mono mt-1">Each disk corresponds to a GitHub repository (Limit: ~5 GB per disk).</p>
+                </div>
+
+                <!-- Disk Search Bar (full width) -->
+                <div class="relative w-full">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </span>
+                    <input type="text" id="diskSearchInput" oninput="filterDisksDashboard(this.value)" placeholder="Search disks..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 pl-10 pr-3 py-3 text-xs font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100">
+                </div>
+
+                <!-- Action buttons (vertical stack) -->
+                <div class="flex flex-col gap-2 w-full">
+                    <button onclick="openNewDiskModal()" class="w-full flex items-center justify-center space-x-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-3 font-mono text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors border border-zinc-900 dark:border-zinc-100">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        <span>NEW DISK</span>
+                    </button>
+                    <button onclick="promptDeleteSelectedDisks()" class="w-full flex items-center justify-center space-x-1.5 border border-red-500/50 hover:border-red-500 text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-950/20 px-4 py-3 font-mono text-xs font-semibold transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        <span>DELETE SELECTED</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Disks Grid -->
+            <div id="disksGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Disks rendered dynamically here -->
+            </div>
+            
+            <div id="noDisksState" class="hidden flex flex-col items-center justify-center py-24 text-zinc-500 font-mono text-xs space-y-2 border border-dashed border-zinc-300 dark:border-zinc-800">
+                <svg class="w-12 h-12 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                <span>No storage disks found matching query. Click "New Disk" to create one.</span>
+            </div>
+        </div>
+
+        <!-- VIEW 2: DISK INTERIOR VIEW (File Explorer) -->
+        <div id="diskInteriorView" class="flex-1 flex flex-col hidden">
+            
+            <!-- Disk Interior Header Bar -->
+            <div class="border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <button onclick="returnToDisksDashboard()" class="flex items-center space-x-1.5 px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-mono text-xs">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        <span>BACK TO DISKS</span>
+                    </button>
+                    <div id="activeDiskInteriorTitle" class="font-mono font-bold text-sm tracking-tight">disk-alpha</div>
+                </div>
+
+                <!-- Add Menu (Folder or Upload) & Search inside Disk -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                        <input type="text" id="interiorSearchInput" oninput="filterInteriorFiles(this.value)" placeholder="Search files/folders..." class="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 w-48">
+                    </div>
+
+                    <!-- Add Dropdown / Options Menu -->
+                    <div class="relative inline-block text-left">
+                        <button onclick="toggleAddMenu()" class="flex items-center space-x-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 font-mono text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors border border-zinc-900 dark:border-zinc-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            <span>ADD ▾</span>
+                        </button>
+                        <div id="addDropdownMenu" class="hidden absolute right-0 mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 shadow-lg z-30 font-mono text-xs">
+                            <button onclick="triggerFileUpload(); toggleAddMenu();" class="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                <span>Upload File (Local)</span>
+                            </button>
+                            <button onclick="createFolderPrompt(); toggleAddMenu();" class="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-800 flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span>New Folder</span>
+                            </button>
+                        </div>
+                    </div>
+                    <input type="file" id="fileUploadInput" class="hidden" onchange="handleFileUpload(event)">
+                </div>
+            </div>
+
+            <!-- Breadcrumbs bar inside Disk -->
+            <div class="border-b border-zinc-300 dark:border-zinc-800 px-4 py-2 bg-white dark:bg-zinc-950 flex items-center justify-between font-mono text-xs">
+                <div id="breadcrumbContainer" class="flex items-center space-x-1 overflow-x-auto py-0.5">
+                    <!-- Breadcrumbs rendered here -->
+                </div>
+                <div id="diskQuotaIndicator" class="text-zinc-500 text-[11px]">
+                    Quota: <span id="quotaUsedLabel">0 MB</span> / 5.0 GB
+                </div>
+            </div>
+
+            <!-- File Table Explorer -->
+            <div class="flex-1 overflow-x-auto">
+                <table class="w-full text-left border-collapse font-mono text-xs">
+                    <thead>
+                        <tr class="border-b border-zinc-300 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400">
+                            <th class="p-3 font-medium">Name</th>
+                            <th class="p-3 font-medium">Size</th>
+                            <th class="p-3 font-medium">Type</th>
+                            <th class="p-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody" class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        <!-- File rows inserted dynamically -->
+                    </tbody>
+                </table>
+                <div id="emptyInteriorState" class="hidden flex-col items-center justify-center py-20 text-zinc-500 font-mono text-xs space-y-2">
+                    <svg class="w-12 h-12 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                    <span>This folder is empty. Click "Add" to upload files or create folders.</span>
+                </div>
+            </div>
+
+            <!-- Interior Footer Status -->
+            <footer class="border-t border-zinc-300 dark:border-zinc-800 px-4 py-2 bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center text-[11px] font-mono text-zinc-500">
+                <div id="connectionStatus" class="flex items-center space-x-2">
+                    <span class="w-2 h-2 bg-amber-500 inline-block"></span>
+                    <span>Simulation Mode (GitHub API optional in settings)</span>
+                </div>
+                <div id="itemCountDisplay">0 items</div>
+            </footer>
+        </div>
+    </main>
+
+    <!-- Pre-Upload Safety Warning Modal (For files > 100MB) -->
+    <div id="safetyWarningModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-zinc-900 border border-amber-500 w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center space-x-3 border-b border-zinc-200 dark:border-zinc-800 pb-3 text-amber-600 dark:text-amber-400">
+                <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h3 class="font-mono font-bold text-sm">SAFETY WARNING: LARGE FILE DETECTED</h3>
+            </div>
+            <div class="space-y-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                <p id="safetyModalMsg">The file you are attempting to upload exceeds GitHub's strict 100 MB single file limit.</p>
+                <div class="p-3 bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 space-y-1 text-[11px]">
+                    <p class="font-bold text-zinc-900 dark:text-zinc-100">💡 Recommended Action:</p>
+                    <p>Please compress or split this file into smaller parts (&lt; 100MB each) to ensure safe storage across your disk repositories without rejection.</p>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button onclick="closeSafetyModal()" class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-mono text-xs font-semibold">UNDERSTOOD</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Disk (Repository) Modal -->
+    <div id="newDiskModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 w-full max-w-md p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <h3 class="font-mono font-bold text-sm">CREATE NEW STORAGE DISK</h3>
+                <button onclick="closeNewDiskModal()" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 font-mono">✕</button>
+            </div>
+            <div class="space-y-3 font-mono text-xs">
+                <div>
+                    <label class="block text-zinc-600 dark:text-zinc-400 mb-1">Disk Name (Repository Name)</label>
+                    <input type="text" id="newDiskNameInput" placeholder="e.g. disk-beta" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
+                </div>
+                <p class="text-[11px] text-zinc-500">Each disk acts as an independent repository capable of storing up to ~5GB of files safely.</p>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button onclick="closeNewDiskModal()" class="px-4 py-2 border border-zinc-300 dark:border-zinc-700 font-mono text-xs">CANCEL</button>
+                <button onclick="addNewDisk()" class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-mono text-xs font-semibold">CREATE DISK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 w-full max-w-lg p-6 space-y-5">
+            <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <h3 class="font-mono font-bold text-sm">GITHUB API SETTINGS</h3>
+                <button onclick="toggleSettingsModal(false)" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 font-mono">✕</button>
+            </div>
+            
+            <div class="space-y-4 font-mono text-xs">
+                <div>
+                    <label class="block text-zinc-600 dark:text-zinc-400 mb-1">GitHub Personal Access Token (PAT)</label>
+                    <input type="password" id="inputToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-zinc-600 dark:text-zinc-400 mb-1">GitHub Username / Org</label>
+                        <input type="text" id="inputOwner" placeholder="e.g. username" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-zinc-600 dark:text-zinc-400 mb-1">Active Disk Repo (Default)</label>
+                        <input type="text" id="inputDisk" placeholder="e.g. disk-alpha" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button onclick="toggleSettingsModal(false)" class="px-4 py-2 border border-zinc-300 dark:border-zinc-700 font-mono text-xs">CANCEL</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-mono text-xs font-semibold">SAVE CONFIG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Floating Confirm Modal (delete warnings) -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-[60] hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeConfirm()">
+        <div class="bg-white dark:bg-zinc-900 border border-red-500 w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center space-x-3 border-b border-zinc-200 dark:border-zinc-800 pb-3 text-red-600 dark:text-red-400">
+                <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h3 id="confirmTitle" class="font-mono font-bold text-sm">CONFIRM DELETION</h3>
+            </div>
+            <div class="space-y-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                <p id="confirmMsg"></p>
+                <div id="confirmDetail" class="hidden p-3 border border-red-500/40 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 text-[11px]"></div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button onclick="closeConfirm()" class="px-4 py-2 border border-zinc-300 dark:border-zinc-700 font-mono text-xs">CANCEL</button>
+                <button id="confirmOkBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-mono text-xs font-semibold">DELETE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Folder Modal -->
+    <div id="folderModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeFolderModal()">
+        <div class="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <h3 class="font-mono font-bold text-sm">NEW FOLDER</h3>
+                <button onclick="closeFolderModal()" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 font-mono">✕</button>
+            </div>
+            <div class="font-mono text-xs">
+                <label class="block text-zinc-600 dark:text-zinc-400 mb-1">Folder name</label>
+                <input type="text" id="newFolderNameInput" placeholder="e.g. photos" class="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 p-2.5 focus:outline-none">
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <button onclick="closeFolderModal()" class="px-4 py-2 border border-zinc-300 dark:border-zinc-700 font-mono text-xs">CANCEL</button>
+                <button onclick="submitNewFolder()" class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-mono text-xs font-semibold">CREATE FOLDER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Message Notification -->
+    <div id="notificationToast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-3 border border-zinc-700 font-mono text-xs shadow-lg flex items-center space-x-3">
+        <span id="toastMessage">Notification message</span>
+        <button onclick="hideToast()" class="text-zinc-400 hover:text-white dark:hover:text-zinc-900">✕</button>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // State Management
+        let appState = {
+            token: localStorage.getItem('gh_drive_token') || '',
+            owner: localStorage.getItem('gh_drive_owner') || '',
+            activeDisk: localStorage.getItem('gh_drive_active_disk') || 'disk-alpha',
+            disks: JSON.parse(localStorage.getItem('gh_drive_disks') || '["disk-alpha"]'),
+            themeMode: localStorage.getItem('gh_drive_theme') || 'system', // 'light', 'dark', 'system'
+            currentView: 'dashboard', // 'dashboard' or 'interior'
+            currentPath: '',
+            files: [],
+            selectedDisks: new Set(),
+            simulatedFiles: JSON.parse(localStorage.getItem('gh_drive_simulated_files') || '{}'),
+            diskSizes: JSON.parse(localStorage.getItem('gh_drive_disk_sizes') || '{}')
+        };
+
+        window.onload = function() {
+            applyTheme();
+            document.getElementById('inputToken').value = appState.token;
+            document.getElementById('inputOwner').value = appState.owner;
+            document.getElementById('inputDisk').value = appState.activeDisk;
+
+            renderDisksDashboard();
+        };
+
+        // --- Three-State Theme Management ---
+        function cycleTheme() {
+            if (appState.themeMode === 'system') {
+                appState.themeMode = 'light';
+            } else if (appState.themeMode === 'light') {
+                appState.themeMode = 'dark';
+            } else {
+                appState.themeMode = 'system';
+            }
+            localStorage.setItem('gh_drive_theme', appState.themeMode);
+            applyTheme();
+        }
+
+        function applyTheme() {
+            const root = document.documentElement;
+            const iconSystem = document.getElementById('themeIconSystem');
+            const iconSun = document.getElementById('themeIconSun');
+            const iconMoon = document.getElementById('themeIconMoon');
+
+            iconSystem.classList.add('hidden');
+            iconSun.classList.add('hidden');
+            iconMoon.classList.add('hidden');
+
+            if (appState.themeMode === 'dark') {
+                root.classList.add('dark');
+                iconMoon.classList.remove('hidden');
+            } else if (appState.themeMode === 'light') {
+                root.classList.remove('dark');
+                iconSun.classList.remove('hidden');
+            } else {
+                iconSystem.classList.remove('hidden');
+                if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    root.classList.add('dark');
+                } else {
+                    root.classList.remove('dark');
+                }
+            }
+        }
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (appState.themeMode === 'system') {
+                applyTheme();
+            }
+        });
+
+        // --- Toast Notification ---
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('notificationToast');
+            const msg = document.getElementById('toastMessage');
+            msg.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            if (isError) {
+                toast.classList.add('bg-red-600', 'text-white');
+            } else {
+                toast.classList.remove('bg-red-600', 'text-white');
+            }
+            setTimeout(hideToast, 4000);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('notificationToast');
+            toast.classList.add('translate-y-20', 'opacity-0');
+        }
+
+        // --- View Controller: Disks Dashboard ---
+        function renderDisksDashboard(filterQuery = '') {
+            appState.currentView = 'dashboard';
+            document.getElementById('disksDashboardView').classList.remove('hidden');
+            document.getElementById('diskInteriorView').classList.add('hidden');
+            document.getElementById('headerCurrentViewText').textContent = 'DISKS DASHBOARD';
+
+            const container = document.getElementById('disksGridContainer');
+            const noDisksState = document.getElementById('noDisksState');
+            container.innerHTML = '';
+
+            const filteredDisks = appState.disks.filter(d => d.toLowerCase().includes(filterQuery.toLowerCase()));
+
+            if (filteredDisks.length === 0) {
+                noDisksState.classList.remove('hidden');
+                noDisksState.classList.add('flex');
+                return;
+            }
+
+            noDisksState.classList.remove('flex');
+            noDisksState.classList.add('hidden');
+
+            filteredDisks.forEach(disk => {
+                const isSelected = appState.selectedDisks.has(disk);
+                const bytesUsed = getDiskBytesUsed(disk);
+                const maxBytes = 5 * 1024 * 1024 * 1024; // 5 GB
+                const percentage = Math.min(100, (bytesUsed / maxBytes) * 100);
+
+                const card = document.createElement('div');
+                card.className = `border p-4 bg-white dark:bg-zinc-900 transition-all flex flex-col justify-between space-y-4 ${isSelected ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 ring-1 ring-zinc-900 dark:ring-zinc-100' : 'border-zinc-300 dark:border-zinc-800 hover:border-zinc-500'}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-3 cursor-pointer flex-1" onclick="enterDisk('${disk}')">
+                            <div class="p-2 border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
+                                <svg class="w-5 h-5 text-zinc-700 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                            </div>
+                            <div class="truncate">
+                                <h3 class="font-mono font-bold text-sm tracking-tight truncate">${disk}</h3>
+                                <p class="text-[11px] font-mono text-zinc-500">GitHub Storage Disk</p>
+                            </div>
+                        </div>
+
+                        <!-- Checkbox for deletion -->
+                        <div class="flex items-center pl-2">
+                            <button type="button" role="checkbox" aria-checked="${isSelected}" aria-label="Select ${disk}" onclick="toggleDiskSelection('${disk}')" class="w-5 h-5 border flex items-center justify-center transition-colors ${isSelected ? 'bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100 text-white dark:text-zinc-900' : 'border-zinc-400 dark:border-zinc-600 hover:border-zinc-900 dark:hover:border-zinc-100 text-transparent'}">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quota & Progress -->
+                    <div class="space-y-1.5 cursor-pointer" onclick="enterDisk('${disk}')">
+                        <div class="flex justify-between text-xs font-mono">
+                            <span class="text-zinc-500">Usage</span>
+                            <span class="font-bold">${formatBytes(bytesUsed)} / 5.0 GB</span>
+                        </div>
+                        <div class="w-full bg-zinc-200 dark:bg-zinc-800 h-2 border border-zinc-300 dark:border-zinc-700 overflow-hidden">
+                            <div class="bg-zinc-900 dark:bg-zinc-100 h-full transition-all duration-300" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Action -->
+                    <div class="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center font-mono text-xs">
+                        <button onclick="enterDisk('${disk}')" class="text-zinc-600 dark:text-zinc-400 hover:underline flex items-center space-x-1">
+                            <span>Open Disk</span>
+                            <span>→</span>
+                        </button>
+                        <span class="text-[10px] text-zinc-400 uppercase">Active</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            if (isLive()) fetchDiskSizes();
+        }
+
+        async function fetchDiskSizes() {
+            let changed = false;
+            for (const disk of appState.disks) {
+                try {
+                    const res = await fetch(`${GH}/repos/${appState.owner}/${disk}`, { headers: ghHeaders() });
+                    if (!res.ok) continue;
+                    const bytes = (await res.json()).size * 1024; // GitHub reports KB
+                    if (appState.diskSizes[disk] !== bytes) { appState.diskSizes[disk] = bytes; changed = true; }
+                } catch (e) { /* ignore */ }
+            }
+            if (changed && appState.currentView === 'dashboard') {
+                localStorage.setItem('gh_drive_disk_sizes', JSON.stringify(appState.diskSizes));
+                renderDisksDashboard(document.getElementById('diskSearchInput').value);
+            }
+        }
+
+        function filterDisksDashboard(query) {
+            renderDisksDashboard(query);
+        }
+
+        function toggleDiskSelection(diskName) {
+            if (appState.selectedDisks.has(diskName)) {
+                appState.selectedDisks.delete(diskName);
+            } else {
+                appState.selectedDisks.add(diskName);
+            }
+            renderDisksDashboard(document.getElementById('diskSearchInput').value);
+        }
+
+        // --- GitHub helpers ---
+        const GH = 'https://api.github.com';
+        function isLive() { return !!(appState.token && appState.owner); }
+        function ghHeaders(json) {
+            const h = { 'Authorization': `Bearer ${appState.token}`, 'Accept': 'application/vnd.github+json' };
+            if (json) h['Content-Type'] = 'application/json';
+            return h;
+        }
+        function ghPath(p) { return p.split('/').map(encodeURIComponent).join('/'); }
+        function contentsUrl(path = '') { return `${GH}/repos/${appState.owner}/${appState.activeDisk}/contents/${ghPath(path)}`; }
+        async function ghError(res, fallback) {
+            try { return (await res.json()).message || fallback; } catch { return fallback; }
+        }
+
+        // --- Floating confirm modal ---
+        let confirmCallback = null;
+        function openConfirm({ title, message, detail = '', confirmLabel = 'DELETE', onConfirm }) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMsg').textContent = message;
+            const d = document.getElementById('confirmDetail');
+            d.textContent = detail;
+            d.classList.toggle('hidden', !detail);
+            const ok = document.getElementById('confirmOkBtn');
+            ok.textContent = confirmLabel;
+            confirmCallback = onConfirm;
+            ok.onclick = () => { const cb = confirmCallback; closeConfirm(); if (cb) cb(); };
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+        function closeConfirm() {
+            confirmCallback = null;
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeConfirm(); closeFolderModal(); closeNewDiskModal(); closeSafetyModal(); toggleSettingsModal(false);
+            }
+            if (e.key === 'Enter') {
+                if (!document.getElementById('folderModal').classList.contains('hidden')) submitNewFolder();
+                else if (!document.getElementById('newDiskModal').classList.contains('hidden')) addNewDisk();
+            }
+        });
+
+        function promptDeleteSelectedDisks() {
+            if (appState.selectedDisks.size === 0) {
+                showToast('Please select at least one disk using the checkbox.', true);
+                return;
+            }
+            if (appState.disks.length - appState.selectedDisks.size < 1) {
+                showToast('You must keep at least one active storage disk.', true);
+                return;
+            }
+            const names = [...appState.selectedDisks];
+            openConfirm({
+                title: 'CONFIRM DISK DELETION',
+                message: `Delete ${names.length} selected disk(s)? This action cannot be undone.`,
+                detail: isLive()
+                    ? `⚠ Connected mode: the GitHub repositories (${names.join(', ')}) will be PERMANENTLY deleted with all their files. Your token needs the "delete_repo" scope.`
+                    : 'Simulation mode: only local data will be removed.',
+                confirmLabel: 'YES, DELETE DISK(S)',
+                onConfirm: confirmDeleteDisks
+            });
+        }
+
+        async function confirmDeleteDisks() {
+            const names = [...appState.selectedDisks];
+            for (const disk of names) {
+                if (isLive()) {
+                    try {
+                        const res = await fetch(`${GH}/repos/${appState.owner}/${disk}`, { method: 'DELETE', headers: ghHeaders() });
+                        if (!res.ok && res.status !== 404) throw new Error(await ghError(res, 'Delete failed'));
+                    } catch (err) {
+                        showToast(`Could not delete ${disk}: ${err.message}`, true);
+                        continue;
+                    }
+                }
+                appState.disks = appState.disks.filter(d => d !== disk);
+                delete appState.diskSizes[disk];
+                Object.keys(appState.simulatedFiles).forEach(key => {
+                    if (key.startsWith(disk + ':')) delete appState.simulatedFiles[key];
+                });
+                appState.selectedDisks.delete(disk);
+            }
+            if (!appState.disks.includes(appState.activeDisk)) appState.activeDisk = appState.disks[0] || 'disk-alpha';
+            localStorage.setItem('gh_drive_disks', JSON.stringify(appState.disks));
+            localStorage.setItem('gh_drive_active_disk', appState.activeDisk);
+            localStorage.setItem('gh_drive_simulated_files', JSON.stringify(appState.simulatedFiles));
+            localStorage.setItem('gh_drive_disk_sizes', JSON.stringify(appState.diskSizes));
+            showToast('Selected disk(s) deleted.');
+            renderDisksDashboard(document.getElementById('diskSearchInput').value);
+        }
+
+        function openNewDiskModal() {
+            document.getElementById('newDiskModal').classList.remove('hidden');
+        }
+
+        function closeNewDiskModal() {
+            document.getElementById('newDiskModal').classList.add('hidden');
+        }
+
+        async function addNewDisk() {
+            const name = document.getElementById('newDiskNameInput').value.trim().toLowerCase().replace(/[\s\/\\]/g, '-');
+            if (!name) return;
+            if (!appState.disks.includes(name)) {
+                if (isLive()) {
+                    try {
+                        const me = await (await fetch(`${GH}/user`, { headers: ghHeaders() })).json();
+                        const endpoint = (me.login || '').toLowerCase() === appState.owner.toLowerCase()
+                            ? `${GH}/user/repos` : `${GH}/orgs/${appState.owner}/repos`;
+                        const res = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: ghHeaders(true),
+                            body: JSON.stringify({ name, private: true, auto_init: true, description: 'GH Drive storage disk' })
+                        });
+                        if (!res.ok) {
+                            const e = await res.json();
+                            const exists = (e.errors || []).some(x => /already exists/i.test(x.message || ''));
+                            if (!exists) throw new Error(e.message || 'Create failed');
+                        }
+                    } catch (err) {
+                        showToast(`Could not create repository: ${err.message}`, true);
+                        return;
+                    }
+                }
+                appState.disks.push(name);
+                localStorage.setItem('gh_drive_disks', JSON.stringify(appState.disks));
+            }
+            document.getElementById('newDiskNameInput').value = '';
+            closeNewDiskModal();
+            showToast(`Disk repository ${name} created successfully.`);
+            renderDisksDashboard();
+        }
+
+        // --- View Controller: Disk Interior (File Explorer) ---
+        function enterDisk(diskName) {
+            appState.activeDisk = diskName;
+            appState.currentPath = '';
+            appState.currentView = 'interior';
+            localStorage.setItem('gh_drive_active_disk', diskName);
+
+            document.getElementById('disksDashboardView').classList.add('hidden');
+            document.getElementById('diskInteriorView').classList.remove('hidden');
+            document.getElementById('activeDiskInteriorTitle').textContent = diskName;
+            document.getElementById('headerCurrentViewText').textContent = `DISK: ${diskName}`;
+
+            loadDiskContents();
+        }
+
+        function returnToDisksDashboard() {
+            appState.currentView = 'dashboard';
+            renderDisksDashboard();
+        }
+
+        function toggleAddMenu() {
+            const menu = document.getElementById('addDropdownMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', function(e) {
+            const menu = document.getElementById('addDropdownMenu');
+            const target = e.target;
+            if (menu && !menu.classList.contains('hidden') && !target.closest('button[onclick="toggleAddMenu()"]') && !target.closest('#addDropdownMenu')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // --- Navigation & Folders ---
+        function navigateTo(path) {
+            appState.currentPath = path;
+            loadDiskContents();
+        }
+
+        function renderBreadcrumbs() {
+            const container = document.getElementById('breadcrumbContainer');
+            container.innerHTML = '';
+
+            let crumbHtml = `<button onclick="navigateTo('')" class="hover:underline text-zinc-900 dark:text-zinc-100 font-bold">~/${appState.activeDisk}</button>`;
+            
+            if (appState.currentPath) {
+                const parts = appState.currentPath.split('/');
+                let builtPath = '';
+                parts.forEach((part, idx) => {
+                    builtPath += (idx === 0 ? part : '/' + part);
+                    crumbHtml += `<span class="text-zinc-400 mx-1">/</span><button onclick="navigateTo('${builtPath}')" class="hover:underline text-zinc-900 dark:text-zinc-100">${part}</button>`;
+                });
+            }
+            container.innerHTML = crumbHtml;
+        }
+
+        // --- Load Disk Contents ---
+        async function loadDiskContents() {
+            renderBreadcrumbs();
+            const tableBody = document.getElementById('fileTableBody');
+            const emptyState = document.getElementById('emptyInteriorState');
+            tableBody.innerHTML = '';
+
+            const isConfigured = appState.token && appState.owner;
+            const statusEl = document.getElementById('connectionStatus');
+
+            if (isConfigured) {
+                statusEl.innerHTML = `<span class="w-2 h-2 bg-emerald-500 inline-block"></span><span>Connected to GitHub (${appState.owner}/${appState.activeDisk})</span>`;
+                try {
+                    const url = `https://api.github.com/repos/${appState.owner}/${appState.activeDisk}/contents/${appState.currentPath}`;
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${appState.token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        appState.files = [];
+                    } else {
+                        const data = await response.json();
+                        appState.files = Array.isArray(data) ? data : [data];
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('GitHub API fetch error. Using local disk cache.', true);
+                    loadSimulatedFiles();
+                }
+            } else {
+                statusEl.innerHTML = `<span class="w-2 h-2 bg-amber-500 inline-block"></span><span>Simulation Disk Mode (Configure token in settings for live GitHub)</span>`;
+                loadSimulatedFiles();
+            }
+
+            renderFileList(appState.files);
+            updateDiskQuotaDisplay();
+        }
+
+        function loadSimulatedFiles() {
+            const diskKey = `${appState.activeDisk}:${appState.currentPath}`;
+            if (!appState.simulatedFiles[diskKey]) {
+                appState.simulatedFiles[diskKey] = appState.currentPath === '' ? [
+                    { name: 'documents', type: 'dir', size: 0, path: 'documents' },
+                    { name: 'readme-disk.txt', type: 'file', size: 540, path: 'readme-disk.txt', download_url: '#' }
+                ] : [];
+            }
+            appState.files = appState.simulatedFiles[diskKey];
+        }
+
+        function renderFileList(files) {
+            const tableBody = document.getElementById('fileTableBody');
+            const emptyState = document.getElementById('emptyInteriorState');
+            tableBody.innerHTML = '';
+            files = (files || []).filter(f => f.name !== '.gitkeep');
+
+            if (!files || files.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                document.getElementById('itemCountDisplay').textContent = '0 items';
+                return;
+            }
+
+            emptyState.classList.remove('flex');
+            emptyState.classList.add('hidden');
+            document.getElementById('itemCountDisplay').textContent = `${files.length} item(s)`;
+
+            files.sort((a, b) => {
+                if (a.type === b.type) return a.name.localeCompare(b.name);
+                return a.type === 'dir' ? -1 : 1;
+            });
+
+            files.forEach(file => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors border-b border-zinc-200 dark:border-zinc-800/60';
+                
+                const isDir = file.type === 'dir';
+                const iconSvg = isDir 
+                    ? `<svg class="w-4 h-4 text-zinc-600 dark:text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>`
+                    : `<svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`;
+
+                const formattedSize = isDir ? '-' : formatBytes(file.size || 0);
+
+                tr.innerHTML = `
+                    <td class="p-3 flex items-center space-x-2">
+                        ${iconSvg}
+                        <a href="#" onclick="${isDir ? `navigateTo('${file.path}')` : `downloadFile('${file.download_url || '#'}', '${file.name}')`}" class="hover:underline font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-xs sm:max-w-md">
+                            ${file.name}
+                        </a>
+                    </td>
+                    <td class="p-3 text-zinc-500">${formattedSize}</td>
+                    <td class="p-3 text-zinc-500 uppercase text-[10px]">${file.type}</td>
+                    <td class="p-3 text-right space-x-2">
+                        ${!isDir ? `<button onclick="copyFileLink('${file.download_url || '#'}')" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 text-[11px] underline">Link</button>` : ''}
+                        <button onclick="deleteItem('${file.name}', '${file.path}', '${file.type}')" class="text-zinc-400 hover:text-red-500 text-[11px]">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function filterInteriorFiles(query) {
+            if (!query) {
+                renderFileList(appState.files);
+                return;
+            }
+            const filtered = appState.files.filter(f => f.name.toLowerCase().includes(query.toLowerCase()));
+            renderFileList(filtered);
+        }
+
+        // --- Upload with Safety Checks (> 100MB warning) ---
+        function triggerFileUpload() {
+            document.getElementById('fileUploadInput').click();
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const maxSize = 100 * 1024 * 1024; // 100 MB GitHub individual limit
+            if (file.size > maxSize) {
+                document.getElementById('safetyModalMsg').textContent = `The file "${file.name}" is ${formatBytes(file.size)}. GitHub strictly rejects individual files larger than 100 MB.`;
+                document.getElementById('safetyWarningModal').classList.remove('hidden');
+                event.target.value = '';
+                return;
+            }
+
+            showToast(`Uploading ${file.name} to ${appState.activeDisk}...`);
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Content = e.target.result.split(',')[1];
+                const filePath = appState.currentPath ? `${appState.currentPath}/${file.name}` : file.name;
+
+                if (appState.token && appState.owner) {
+                    try {
+                        const url = contentsUrl(filePath);
+                        let sha;
+                        try {
+                            const existing = await fetch(url, { headers: ghHeaders() });
+                            if (existing.ok) sha = (await existing.json()).sha;
+                        } catch (e) { /* new file */ }
+                        const payload = { message: `Upload ${file.name} to ${appState.activeDisk}`, content: base64Content };
+                        if (sha) payload.sha = sha;
+                        const response = await fetch(url, { method: 'PUT', headers: ghHeaders(true), body: JSON.stringify(payload) });
+
+                        if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.message || 'Upload failed');
+                        }
+
+                        showToast(`Uploaded ${file.name} successfully!`);
+                        loadDiskContents();
+                    } catch (err) {
+                        console.error(err);
+                        showToast(`Upload error: ${err.message}`, true);
+                    }
+                } else {
+                    setTimeout(() => {
+                        const diskKey = `${appState.activeDisk}:${appState.currentPath}`;
+                        if (!appState.simulatedFiles[diskKey]) appState.simulatedFiles[diskKey] = [];
+                        
+                        appState.simulatedFiles[diskKey] = appState.simulatedFiles[diskKey].filter(f => f.name !== file.name);
+                        appState.simulatedFiles[diskKey].push({
+                            name: file.name,
+                            type: 'file',
+                            size: file.size,
+                            path: filePath,
+                            download_url: e.target.result
+                        });
+
+                        localStorage.setItem('gh_drive_simulated_files', JSON.stringify(appState.simulatedFiles));
+                        showToast(`[Simulated] Uploaded ${file.name} successfully!`);
+                        loadDiskContents();
+                    }, 500);
+                }
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function closeSafetyModal() {
+            document.getElementById('safetyWarningModal').classList.add('hidden');
+        }
+
+        function createFolderPrompt() {
+            document.getElementById('newFolderNameInput').value = '';
+            document.getElementById('folderModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('newFolderNameInput').focus(), 50);
+        }
+
+        function closeFolderModal() {
+            document.getElementById('folderModal').classList.add('hidden');
+        }
+
+        function submitNewFolder() {
+            const cleanName = document.getElementById('newFolderNameInput').value.trim().replace(/[\/\\]/g, '');
+            if (!cleanName) return;
+            closeFolderModal();
+            const folderPath = appState.currentPath ? `${appState.currentPath}/${cleanName}` : cleanName;
+
+            if (isLive()) {
+                createPlaceholderFile(folderPath + '/.gitkeep', 'Folder placeholder');
+            } else {
+                const diskKey = `${appState.activeDisk}:${appState.currentPath}`;
+                if (!appState.simulatedFiles[diskKey]) appState.simulatedFiles[diskKey] = [];
+                appState.simulatedFiles[diskKey].push({ name: cleanName, type: 'dir', size: 0, path: folderPath });
+                localStorage.setItem('gh_drive_simulated_files', JSON.stringify(appState.simulatedFiles));
+                showToast(`Folder ${cleanName} created.`);
+                loadDiskContents();
+            }
+        }
+
+        async function createPlaceholderFile(filePath, content) {
+            try {
+                const res = await fetch(contentsUrl(filePath), {
+                    method: 'PUT',
+                    headers: ghHeaders(true),
+                    body: JSON.stringify({ message: `Create folder structure ${filePath}`, content: btoa(content) })
+                });
+                if (!res.ok) throw new Error(await ghError(res, 'Create failed'));
+                showToast('Folder created on GitHub.');
+                loadDiskContents();
+            } catch (err) {
+                showToast(`Failed to create folder: ${err.message}`, true);
+            }
+        }
+
+        async function ghDeletePath(path) {
+            const res = await fetch(contentsUrl(path), { headers: ghHeaders() });
+            if (!res.ok) throw new Error(await ghError(res, 'Item not found on GitHub'));
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                for (const item of data) await ghDeletePath(item.path);
+                return;
+            }
+            const del = await fetch(contentsUrl(path), {
+                method: 'DELETE',
+                headers: ghHeaders(true),
+                body: JSON.stringify({ message: `Delete ${path} via GH Drive`, sha: data.sha })
+            });
+            if (!del.ok) throw new Error(await ghError(del, 'Deletion failed'));
+        }
+
+        function deleteItem(name, path, type = 'file') {
+            const isDir = type === 'dir';
+            openConfirm({
+                title: isDir ? 'DELETE FOLDER' : 'DELETE FILE',
+                message: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+                detail: isDir ? 'The folder and ALL its contents will be deleted.' : '',
+                confirmLabel: 'YES, DELETE',
+                onConfirm: () => performDelete(name, path, isDir)
+            });
+        }
+
+        async function performDelete(name, path, isDir) {
+            if (isLive()) {
+                try {
+                    await ghDeletePath(path);
+                    showToast(`Deleted ${name}.`);
+                } catch (err) {
+                    showToast(`Delete error: ${err.message}`, true);
+                }
+                loadDiskContents();
+            } else {
+                const diskKey = `${appState.activeDisk}:${appState.currentPath}`;
+                if (appState.simulatedFiles[diskKey]) {
+                    appState.simulatedFiles[diskKey] = appState.simulatedFiles[diskKey].filter(f => f.name !== name);
+                }
+                if (isDir) {
+                    const base = `${appState.activeDisk}:${path}`;
+                    Object.keys(appState.simulatedFiles).forEach(k => {
+                        if (k === base || k.startsWith(base + '/')) delete appState.simulatedFiles[k];
+                    });
+                }
+                localStorage.setItem('gh_drive_simulated_files', JSON.stringify(appState.simulatedFiles));
+                showToast(`[Simulated] Deleted ${name}.`);
+                loadDiskContents();
+            }
+        }
+
+        function downloadFile(url, filename) {
+            if (url === '#' || !url) {
+                showToast('Download link not active in simulation mode for this item.', true);
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function copyFileLink(url) {
+            if (url === '#' || !url) {
+                showToast('No valid link available.', true);
+                return;
+            }
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = url;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            showToast('Download link copied to clipboard.');
+        }
+
+        // --- Storage Quota calculation helpers ---
+        function getDiskBytesUsed(diskName) {
+            if (isLive()) return appState.diskSizes[diskName] || 0;
+            let total = 0;
+            Object.keys(appState.simulatedFiles).forEach(key => {
+                if (key.startsWith(diskName + ':')) {
+                    appState.simulatedFiles[key].forEach(f => {
+                        total += (f.size || 0);
+                    });
+                }
+            });
+            return total;
+        }
+
+        function updateDiskQuotaDisplay() {
+            let totalBytes = 0;
+            appState.files.forEach(f => {
+                totalBytes += (f.size || 0);
+            });
+            document.getElementById('quotaUsedLabel').textContent = formatBytes(totalBytes);
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // --- Settings Modal ---
+        function toggleSettingsModal(show) {
+            const modal = document.getElementById('settingsModal');
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        function saveSettings() {
+            appState.token = document.getElementById('inputToken').value.trim();
+            appState.owner = document.getElementById('inputOwner').value.trim();
+            const newDisk = document.getElementById('inputDisk').value.trim();
+
+            if (newDisk && !appState.disks.includes(newDisk)) {
+                appState.disks.push(newDisk);
+            }
+            if (newDisk) {
+                appState.activeDisk = newDisk;
+            }
+
+            localStorage.setItem('gh_drive_token', appState.token);
+            localStorage.setItem('gh_drive_owner', appState.owner);
+            localStorage.setItem('gh_drive_active_disk', appState.activeDisk);
+            localStorage.setItem('gh_drive_disks', JSON.stringify(appState.disks));
+
+            toggleSettingsModal(false);
+            showToast('Settings saved successfully.');
+            if (appState.currentView === 'dashboard') {
+                renderDisksDashboard();
+            } else {
+                loadDiskContents();
+            }
+        }
+    </script>
+</body>
+</html>
